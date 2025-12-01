@@ -383,42 +383,96 @@ pub trait TypedEnvBackend: EnvBackend {
     fn call_data_load(&mut self, offset: u32) -> U256;
 
     /// Sets the storage entry for a fixed 256‑bit key with a fixed 256‑bit value.
-    /// If the provided 32‑byte value is all zeros then the key is cleared (i.e. deleted).
-    /// Returns the size (in bytes) of the pre‑existing value at the specified key, if
+    // Returns the size (in bytes) of the pre‑existing value at the specified key, if
     /// any. This is akin to the EVM [SSTORE](https://www.evm.codes/?fork=cancun#55) opcode.
     ///
     /// # Note
     ///
     /// For more details visit: [`set_storage`][`crate::set_storage`]
-    fn set_storage(&mut self, key: U256, value: &[u8; 32]) -> Option<u32>;
+    fn set_storage<K, V>(&mut self, key: &K, value: &V) -> Option<u32>
+    where
+        K: scale::Encode,
+        V: Storable;
 
-    /// Sets the transient storage entry for a fixed 256‑bit key with a fixed 256‑bit
-    /// value. If the provided 32‑byte value is all zeros then the key is cleared
-    /// (i.e. deleted). Returns the size (in bytes) of the pre‑existing value at the
+    /// Sets the transient storage entry for a fixed 256‑bit encodeable key to a 256‑bit encodeable value.
+    /// value. Returns the size (in bytes) of the pre‑existing value at the
     /// specified key, if any. This is akin to the EVM [TSTORE](https://www.evm.codes/?fork=cancun#5D) opcode.
+    ///
+    /// # Errors
+    ///
+    /// - If `key` is not encodeable to 32 bytes.
     ///
     /// # Note
     ///
     /// For more details visit: [`set_transient_storage`][`crate::set_transient_storage`]
-    fn set_transient_storage(&mut self, key: U256, value: &[u8; 32]) -> Option<u32>;
+    fn set_transient_storage<K, V>(&mut self, key: &K, value: &V) -> Option<u32>
+    where
+        K: scale::Encode,
+        V: Storable;
 
-    /// Retrieves the storage entry for a fixed 256‑bit key.
-    /// If the key does not exist, it returns 32 zero bytes.
+    /// Clears the storage entry for a 256‑bit encodeable key.
+    /// Returns the size (in bytes) of the previously stored value at the specified key, if any.
+    /// This is akin to the EVM [SSTORE](https://www.evm.codes/?fork=cancun#55) opcode with zero value.
+    ///
+    /// # Errors
+    ///
+    /// - If `key` is not encodeable to 32 bytes.
+    ///
+    /// # Note
+    ///
+    /// For more details visit: [`clear_storage`][`crate::clear_storage`]s
+    fn clear_storage<K>(&mut self, key: &K) -> Option<u32>
+    where
+        K: scale::Encode;
+
+    /// Clears the transient storage entry for a 256‑bit encodeable key.
+    /// Returns the size (in bytes) of the previously stored value at the specified key,
+    /// if any. This is akin to the EVM [TSTORE](https://www.evm.codes/?fork=cancun#5D) opcode with zero value.
+    ///
+    /// # Errors
+    ///
+    /// - If `key` is not encodeable to 32 bytes.
+    ///
+    /// # Note
+    ///
+    /// For more details visit: [`clear_transient_storage`][`crate::clear_transient_storage`]
+    fn clear_transient_storage<K>(&mut self, key: &K) -> Option<u32>
+    where
+        K: scale::Encode;
+
+    /// Retrieves the storage entry for a 256‑bit encodeable key.
+    /// If the key does not exist, the default value for the type `V` is returned.
     /// This is akin to the EVM [SLOAD](https://www.evm.codes/?fork=cancun#54) opcode.
+    ///
+    /// # Errors
+    ///
+    /// - If `key` is not encodeable to 32 bytes.
+    /// - If the decoding of the typed value failed.
     ///
     /// # Note
     ///
     /// For more details visit: [`get_storage`][`crate::get_storage`]
-    fn get_storage(&mut self, key: U256) -> [u8; 32];
+    fn get_storage<K, V>(&mut self, key: &K) -> V
+    where
+        K: scale::Encode,
+        V: Storable + Default;
 
-    /// Retrieves the transient storage entry for a fixed 256‑bit key.
-    /// If the key does not exist, it returns 32 zero bytes.
+    /// Retrieves the transient storage entry for a 256‑bit encodeable key.
+    /// If the key does not exist, the default value for the type `V` is returned.
     /// This is akin to the EVM [TLOAD](https://www.evm.codes/?fork=cancun#5C) opcode.
+    ///
+    /// # Errors
+    ///
+    /// - If `key` is not encodeable to 32 bytes.
+    /// - If the decoding of the typed value failed.
     ///
     /// # Note
     ///
     /// For more details visit: [`get_transient_storage`][`crate::get_transient_storage`]
-    fn get_transient_storage(&mut self, key: U256) -> [u8; 32];
+    fn get_transient_storage<K, V>(&mut self, key: &K) -> V
+    where
+        K: scale::Encode,
+        V: Storable + Default;
 
     /// Returns the transferred value for the contract execution.
     ///
