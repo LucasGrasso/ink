@@ -1102,32 +1102,86 @@ impl TypedEnvBackend for EnvInstance {
         U256::from_le_bytes(*u256)
     }
 
-    fn set_storage(&mut self, key: U256, value: &[u8; 32]) -> Option<u32> {
+    fn set_storage<K, V>(&mut self, key: &K, value: &V) -> Option<u32>
+    where
+        K: scale::Encode,
+        V: Storable,
+    {
         let mut scope = self.scoped_buffer();
-        let key: &mut [u8; 32] = scope.take_encoded(&key).try_into().unwrap();
-        ext::set_storage_or_clear(STORAGE_FLAGS, key, value)
+        let key: &mut [u8; 32] = scope.take_encoded(key).try_into().unwrap();
+        let value = {
+            let bytes : [u8; 32] = scope.take_storable_encoded(value).try_into().unwrap();
+            bytes
+        };
+        ext::set_storage_or_clear(STORAGE_FLAGS, key, &value)
     }
 
-    fn set_transient_storage(&mut self, key: U256, value: &[u8; 32]) -> Option<u32> {
+    fn set_transient_storage<K, V>(&mut self, key: &K, value: &V) -> Option<u32>
+    where
+        K: scale::Encode,
+        V: Storable,
+    {
         let mut scope = self.scoped_buffer();
-        let key: &mut [u8; 32] = scope.take_encoded(&key).try_into().unwrap();
-        ext::set_storage_or_clear(TRANSIENT_STORAGE_FLAGS, key, value)
+        let key: &mut [u8; 32] = scope.take_encoded(key).try_into().unwrap();
+        let value = {
+            let bytes : [u8; 32] = scope.take_storable_encoded(value).try_into().unwrap();
+            bytes
+        };
+        ext::set_storage_or_clear(TRANSIENT_STORAGE_FLAGS, key, &value)
     }
 
-    fn get_storage(&mut self, key: U256) -> [u8; 32] {
+    fn get_storage<K, V>(&mut self, key: &K) -> V
+    where
+        K: scale::Encode,
+        V: Storable + Default,
+    {
         let mut scope = self.scoped_buffer();
-        let key: &mut [u8; 32] = scope.take_encoded(&key).try_into().unwrap();
+        let key: &mut [u8; 32] = scope.take_encoded(key).try_into().unwrap();
         let value: &mut [u8; 32] = scope.take(32).try_into().unwrap();
         ext::get_storage_or_zero(STORAGE_FLAGS, key, value);
-        *value
+
+        if value.iter().all(|&b| b == 0) {
+          V::default()
+        } else {
+            <V as Storable>::decode(&mut &value[..]).unwrap()
+        }
     }
 
-    fn get_transient_storage(&mut self, key: U256) -> [u8; 32] {
+    fn get_transient_storage<K, V>(&mut self, key: &K) -> V
+    where
+        K: scale::Encode,
+        V: Storable + Default,
+    {
         let mut scope = self.scoped_buffer();
-        let key: &mut [u8; 32] = scope.take_encoded(&key).try_into().unwrap();
+        let key: &mut [u8; 32] = scope.take_encoded(key).try_into().unwrap();
         let value: &mut [u8; 32] = scope.take(32).try_into().unwrap();
         ext::get_storage_or_zero(TRANSIENT_STORAGE_FLAGS, key, value);
-        *value
+        
+        if value.iter().all(|&b| b == 0) {
+          V::default()
+        } else {
+            <V as Storable>::decode(&mut &value[..]).unwrap()
+        }
+    }
+
+    fn clear_storage<K>(&mut self, key: &K) -> Option<u32>
+    where
+        K: scale::Encode,
+    {
+        let mut scope = self.scoped_buffer();
+        let key: &mut [u8; 32] = scope.take_encoded(key).try_into().unwrap();
+        let value = [0u8; 32];
+        ext::set_storage_or_clear(STORAGE_FLAGS, key, &value)
+    }
+
+    fn clear_transient_storage<K>(&mut self, key: &K) -> Option<u32>
+    where
+        K: scale::Encode,
+    {
+        let mut scope = self.scoped_buffer();
+        let key: &mut [u8; 32] = scope.take_encoded(key).try_into().unwrap();
+        let value = [0u8; 32];
+        ext::set_storage_or_clear(TRANSIENT_STORAGE_FLAGS, key, &value)
     }
 
     fn transferred_value(&mut self) -> U256 {
