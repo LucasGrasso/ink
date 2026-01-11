@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use core::marker::PhantomData;
-
+use crate::storage::traits::Storable;
 use ink_env::{
     Environment,
     Result,
@@ -342,13 +342,16 @@ where
     /// # Note
     ///
     /// For more details visit: [`ink_env::set_storage`]
-    pub fn set_storage(self, key: U256, value: &[u8; 32]) -> Option<u32> {
-        ink_env::set_storage(key, value)
+    pub fn set_storage<K, V>(self, key: &K, value: &V) -> Option<u32>
+    where
+        K: scale::Encode,
+        V: Storable,
+    {
+        ink_env::set_storage::<K,V>(key, value)
     }
 
-    /// Sets the transient storage entry for a fixed 256-bit key with a fixed 256-bit
-    /// value. If the provided 32-byte value is all zeros then the key is cleared
-    /// (i.e. deleted). Returns the size (in bytes) of the pre-existing value at the
+    /// Sets the transient storage entry for a key-value pair where the key is encoded and the value is storable.
+    /// If the provided value is all zeros then the key is cleared (i.e. deleted). Returns the size (in bytes) of the pre-existing value at the
     /// specified key, if any. This is akin to the EVM [TSTORE](https://www.evm.codes/?fork=cancun#5D) opcode.
     ///
     /// # Example
@@ -356,8 +359,6 @@ where
     /// ```
     /// #[ink::contract]
     /// mod my_contract {
-    ///     use ink::U256;
-    ///
     ///     #[ink(storage)]
     ///     pub struct MyContract;
     ///
@@ -369,9 +370,9 @@ where
     ///
     ///         #[ink(message)]
     ///         pub fn store_transient(&self) {
-    ///             let key = U256::from(42u32);
-    ///             let value = [0xABu8; 32];
-    ///             self.env().set_transient_storage(key, &value);
+    ///             let key = 42u32;
+    ///             let value = 100u32;
+    ///             self.env().set_transient_storage(&key, &value);
     ///         }
     ///     }
     /// }
@@ -380,11 +381,15 @@ where
     /// # Note
     ///
     /// For more details visit: [`ink_env::set_transient_storage`]
-    pub fn set_transient_storage(self, key: U256, value: &[u8; 32]) -> Option<u32> {
-        ink_env::set_transient_storage(key, value)
+    pub fn set_transient_storage<K, V>(self, key: &K, value: &V) -> Option<u32>
+    where
+        K: scale::Encode,
+        V: Storable,
+    {
+        ink_env::set_transient_storage::<K, V>(key, value)
     }
 
-    /// Retrieves the storage entry for a fixed 256-bit key.
+    /// Retrieves the storage entry for a given key.
     /// If the key does not exist, it returns 32 zero bytes.
     /// This is akin to the EVM [SLOAD](https://www.evm.codes/?fork=cancun#54) opcode.
     ///
@@ -393,8 +398,6 @@ where
     /// ```
     /// #[ink::contract]
     /// mod my_contract {
-    ///     use ink::U256;
-    ///
     ///     #[ink(storage)]
     ///     pub struct MyContract;
     ///
@@ -406,8 +409,8 @@ where
     ///
     ///         #[ink(message)]
     ///         pub fn load_value(&self) -> [u8; 32] {
-    ///             let key = U256::from(42u32);
-    ///             self.env().get_storage(key)
+    ///             let key = 42u32;
+    ///             self.env().get_storage(&key)
     ///         }
     ///     }
     /// }
@@ -416,11 +419,15 @@ where
     /// # Note
     ///
     /// For more details visit: [`ink_env::get_storage`]
-    pub fn get_storage(self, key: U256) -> [u8; 32] {
-        ink_env::get_storage(key)
+    pub fn get_storage<K, V>(self, key: &K) -> V
+    where
+        K: scale::Encode,
+        V: Storable + Default,
+    {
+        ink_env::get_storage::<K, V>(key)
     }
 
-    /// Retrieves the transient storage entry for a fixed 256-bit key.
+    /// Retrieves the transient storage entry for a given key.
     /// If the key does not exist, it returns 32 zero bytes.
     /// This is akin to the EVM [TLOAD](https://www.evm.codes/?fork=cancun#5C) opcode.
     ///
@@ -429,8 +436,6 @@ where
     /// ```
     /// #[ink::contract]
     /// mod my_contract {
-    ///     use ink::U256;
-    ///
     ///     #[ink(storage)]
     ///     pub struct MyContract;
     ///
@@ -442,8 +447,8 @@ where
     ///
     ///         #[ink(message)]
     ///         pub fn load_transient(&self) -> [u8; 32] {
-    ///             let key = U256::from(42u32);
-    ///             self.env().get_transient_storage(key)
+    ///             let key = 42u32;
+    ///             self.env().get_transient_storage(&key)
     ///         }
     ///     }
     /// }
@@ -452,8 +457,86 @@ where
     /// # Note
     ///
     /// For more details visit: [`ink_env::get_transient_storage`]
-    pub fn get_transient_storage(self, key: U256) -> [u8; 32] {
-        ink_env::get_transient_storage(key)
+    pub fn get_transient_storage<K, V>(self, key: &K) -> V
+    where
+        K: scale::Encode,
+        V: Storable + Default,
+    {
+        ink_env::get_transient_storage::<K, V>(key)
+    }
+
+    /// Clears the storage entry for a 256-bit encodeable key.
+    /// Returns the size (in bytes) of the previously stored value at the specified key, if any.
+    /// This is akin to the EVM [SSTORE](https://www.evm.codes/?fork=cancun#55) opcode with zero value.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// #[ink::contract]
+    /// mod my_contract {
+    ///     #[ink(storage)]
+    ///     pub struct MyContract;
+    ///
+    ///     impl MyContract {
+    ///         #[ink(constructor)]
+    ///         pub fn new() -> Self {
+    ///             Self {}
+    ///         }
+    ///
+    ///         #[ink(message)]
+    ///         pub fn clear_value(&self) {
+    ///             let key = 42u32;
+    ///             self.env().clear_storage(&key);
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # Note
+    ///
+    /// For more details visit: [`ink_env::clear_storage`]
+    pub fn clear_storage<K>(self, key: &K) -> Option<u32>
+    where
+        K: scale::Encode,
+    {
+        ink_env::clear_storage::<K>(key)
+    }
+
+    /// Clears the transient storage entry for a 256-bit encodeable key.
+    /// Returns the size (in bytes) of the previously stored value at the specified key, if any.
+    /// This is akin to the EVM [TSTORE](https://www.evm.codes/?fork=cancun#5D) opcode with zero value.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// #[ink::contract]
+    /// mod my_contract {
+    ///     #[ink(storage)]
+    ///     pub struct MyContract;
+    ///
+    ///     impl MyContract {
+    ///         #[ink(constructor)]
+    ///         pub fn new() -> Self {
+    ///             Self {}
+    ///         }
+    ///
+    ///         #[ink(message)]
+    ///         pub fn clear_transient(&self) {
+    ///             let key = 42u32;
+    ///             self.env().clear_transient_storage(&key);
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # Note
+    ///
+    /// For more details visit: [`ink_env::clear_transient_storage`]
+    pub fn clear_transient_storage<K>(self, key: &K) -> Option<u32>
+    where
+        K: scale::Encode,
+    {
+        ink_env::clear_transient_storage::<K>(key)
     }
 
     /// Returns the [EIP-155](https://eips.ethereum.org/EIPS/eip-155) chain ID,

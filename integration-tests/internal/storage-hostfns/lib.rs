@@ -17,42 +17,42 @@ mod storage_hostfns {
         /// Sets a value in persistent storage.
         #[ink(message)]
         pub fn set_storage(&self, key: U256, value: [u8; 32]) -> Option<u32> {
-            self.env().set_storage(key, &value)
+            self.env().set_storage(&key, &value)
         }
 
         /// Sets a value in transient storage.
         #[ink(message)]
         pub fn set_transient_storage(&self, key: U256, value: [u8; 32]) -> Option<u32> {
-            self.env().set_transient_storage(key, &value)
+            self.env().set_transient_storage(&key, &value)
         }
 
-        /// Clears a persistent storage entry by setting value to all zeros.
+        /// Clears a persistent storage entry.
         #[ink(message)]
         pub fn clear_storage(&self, key: U256) -> Option<u32> {
-            self.env().set_storage(key, &[0u8; 32])
+            self.env().clear_storage(&key)
         }
 
-        /// Clears a transient storage entry by setting value to all zeros.
+        /// Sets a transient value and immediately clears it in the same transaction.
         #[ink(message)]
-        pub fn set_clear_transient_storage(
+        pub fn set_and_clear_transient_storage(
             &self,
             key: U256,
             value: [u8; 32],
         ) -> Option<u32> {
-            self.env().set_transient_storage(key, &value);
-            self.env().set_transient_storage(key, &[0u8; 32])
+            self.env().set_transient_storage(&key, &value);
+            self.env().clear_transient_storage(&key)
         }
 
         /// Retrieves a value from persistent storage.
         #[ink(message)]
         pub fn get_storage(&self, key: U256) -> [u8; 32] {
-            self.env().get_storage(key)
+            self.env().get_storage(&key)
         }
 
         /// Retrieves a value from transient storage.
         #[ink(message)]
         pub fn get_transient_storage(&self, key: U256) -> [u8; 32] {
-            self.env().get_transient_storage(key)
+            self.env().get_transient_storage(&key)
         }
 
         /// Sets a transient value and immediately retrieves it in the same transaction.
@@ -62,8 +62,8 @@ mod storage_hostfns {
             key: U256,
             value: [u8; 32],
         ) -> [u8; 32] {
-            self.env().set_transient_storage(key, &value);
-            self.env().get_transient_storage(key)
+            self.env().set_transient_storage(&key, &value);
+            self.env().get_transient_storage(&key)
         }
     }
 
@@ -169,7 +169,7 @@ mod storage_hostfns {
         }
 
         #[ink_e2e::test]
-        async fn clear_transient_storage_works<Client: E2EBackend>(
+        async fn set_and_clear_transient_storage_works<Client: E2EBackend>(
             mut client: Client,
         ) -> E2EResult<()> {
             // given
@@ -181,13 +181,14 @@ mod storage_hostfns {
                 .expect("instantiate failed");
             let call_builder = contract.call_builder::<Storagefns>();
 
-            let key = U256::from(50u32);
+            let key = U256::from(51u32);
             let value = [0x1u8; 32];
 
+            // when - set and clear a transient value in the same call
             let result = client
                 .call(
                     &ink_e2e::alice(),
-                    &call_builder.set_clear_transient_storage(key, value),
+                    &call_builder.set_and_clear_transient_storage(key, value),
                 )
                 .submit()
                 .await

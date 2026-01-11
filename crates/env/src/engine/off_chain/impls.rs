@@ -620,19 +620,49 @@ impl TypedEnvBackend for EnvInstance {
         unimplemented!("not implemented, the off-chain environment will be removed");
     }
 
-    fn set_storage(&mut self, _key: U256, _value: &[u8; 32]) -> Option<u32> {
+    fn set_storage<K, V>(&mut self, _key: &K, _value: &V) -> Option<u32>
+    where
+        K: scale::Encode,
+        V: Storable,
+    {
         unimplemented!("not implemented, the off-chain environment will be removed");
     }
 
-    fn set_transient_storage(&mut self, _key: U256, _value: &[u8; 32]) -> Option<u32> {
+    fn set_transient_storage<K, V>(&mut self, _key: &K, _value: &V) -> Option<u32>
+    where
+        K: scale::Encode,
+        V: Storable,
+    {
         unimplemented!("not implemented, the off-chain environment will be removed");
     }
 
-    fn get_storage(&mut self, _key: U256) -> [u8; 32] {
+    fn get_storage<K, V>(&mut self, _key: &K) -> V
+    where
+        K: scale::Encode,
+        V: Storable + Default,
+    {
         unimplemented!("not implemented, the off-chain environment will be removed");
     }
 
-    fn get_transient_storage(&mut self, _key: U256) -> [u8; 32] {
+    fn get_transient_storage<K, V>(&mut self, _key: &K) -> V
+    where
+        K: scale::Encode,
+        V: Storable + Default,
+    {
+        unimplemented!("not implemented, the off-chain environment will be removed");
+    }
+
+    fn clear_storage<K>(&mut self, _key: &K) -> Option<u32>
+    where
+        K: scale::Encode,
+    {
+        unimplemented!("not implemented, the off-chain environment will be removed");
+    }
+
+    fn clear_transient_storage<K>(&mut self, _key: &K) -> Option<u32>
+    where
+        K: scale::Encode,
+    {
         unimplemented!("not implemented, the off-chain environment will be removed");
     }
 
